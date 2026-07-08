@@ -17,7 +17,7 @@ st.set_page_config(
 # ----------------------------
 @st.cache_resource
 def load_covid_model():
-    model = tf.keras.models.load_model("model.h5")
+    model = tf.keras.models.load_model("model.keras")
     return model
 
 model = load_covid_model()
@@ -32,8 +32,8 @@ CLASS_NAMES = ["NORMAL", "COVID"]
 # ----------------------------
 def preprocess_image(img):
     img = img.convert("RGB")
-    img = img.resize((299, 299))
-    img_array = np.array(img) / 255.0
+    img = img.resize((299, 299))   # keep this same as training image size
+    img_array = np.array(img, dtype=np.float32) / 255.0
     img_array = np.expand_dims(img_array, axis=0)
     return img_array
 
@@ -42,9 +42,9 @@ def preprocess_image(img):
 # ----------------------------
 def predict_image(img):
     processed = preprocess_image(img)
-    prediction = model.predict(processed)
+    prediction = model.predict(processed, verbose=0)
 
-    # Since your model uses sigmoid output with Dense(1)
+    # For binary sigmoid output
     prob = float(prediction[0][0])
 
     if prob > 0.5:
@@ -60,7 +60,9 @@ def predict_image(img):
 # UI
 # ----------------------------
 st.title("🩺 COVID-19 Detection from Chest X-Ray")
-st.write("Upload a chest X-ray image and the model will predict whether it is **COVID** or **NORMAL**.")
+st.write(
+    "Upload a chest X-ray image and the model will predict whether it is **COVID** or **NORMAL**."
+)
 
 uploaded_file = st.file_uploader(
     "Upload Chest X-Ray Image",
@@ -68,13 +70,13 @@ uploaded_file = st.file_uploader(
 )
 
 if uploaded_file is not None:
-    image = Image.open(uploaded_file)
+    img = Image.open(uploaded_file)
 
-    st.image(image, caption="Uploaded X-Ray Image", use_container_width=True)
+    st.image(img, caption="Uploaded X-Ray Image", use_container_width=True)
 
     if st.button("Predict"):
         with st.spinner("Analyzing image..."):
-            label, confidence, raw_prob = predict_image(image)
+            label, confidence, raw_prob = predict_image(img)
 
         st.success("Prediction complete!")
 
@@ -85,7 +87,7 @@ if uploaded_file is not None:
 
         st.info(f"Confidence: **{confidence:.2f}%**")
 
-        # Optional probability display
+        # Optional details
         st.write("### Prediction Details")
         st.write(f"Raw model output: `{raw_prob:.4f}`")
         st.progress(min(int(confidence), 100))
